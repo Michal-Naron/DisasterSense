@@ -1,0 +1,54 @@
+version: "3.9"
+
+services:
+
+  weather-service:
+    build:
+      context: ./weather-service
+    platform: linux/arm64
+    container_name: weather-service
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./weather-service:/app
+    environment:
+      - DEBUG=1
+
+  seismic-service:
+    build:
+      context: ./seismic-service
+    platform: linux/arm64
+    container_name: seismic-service
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./seismic-service:/app
+    environment:
+      - DEBUG=1
+
+  ocean-service:
+    build:
+      context: ./ocean-service
+    platform: linux/arm64
+    container_name: ocean-service
+    ports:
+      - "8003:8000"
+    volumes:
+      - ./ocean-service:/app
+    environment:
+      - DEBUG=1
+
+  risk-engine:
+    build:
+      context: ./risk-engine
+    platform: linux/arm64
+    container_name: risk-engine
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./risk-engine:/app
+      - /app/node_modules
+    depends_on:
+      - weather-service
+      - seismic-service
+      - ocean-service
