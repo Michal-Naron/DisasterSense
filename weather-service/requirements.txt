@@ -1,2 +1,7 @@
 Django==6.0.3
 djangorestframework==3.16.1
+openmeteo_requests==1.7.5
+requests_cache==0.9.8
+retry_requests
+pandas==2.2.0
+requests==2.32.0
