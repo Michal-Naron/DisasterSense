@@ -46,7 +46,7 @@ services:
     ports:
       - "8004:8000"
     volumes:
-      - ./user-service:/app
+      - ./user_service:/app
     environment:
       - DEBUG=1
 
