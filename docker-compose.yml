@@ -38,17 +38,30 @@ services:
     environment:
       - DEBUG=1
 
+  user-service:   
+    build:
+      context: ./user_service
+    platform: linux/arm64
+    container_name: user-service
+    ports:
+      - "8004:8000"
+    volumes:
+      - ./user-service:/app
+    environment:
+      - DEBUG=1
+
   risk-engine:
     build:
-      context: ./risk-engine
+      context: ./risk_engine
     platform: linux/arm64
     container_name: risk-engine
     ports:
       - "3000:3000"
     volumes:
-      - ./risk-engine:/app
+      - ./risk_engine:/app
       - /app/node_modules
     depends_on:
       - weather-service
       - seismic-service
       - ocean-service
+      - user-service   
