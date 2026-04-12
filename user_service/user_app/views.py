@@ -5,8 +5,6 @@ from .serializers import RegisterSerializer
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 
-# import do tokenów
-from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class RegisterView(generics.CreateAPIView):
@@ -18,11 +16,9 @@ class RegisterView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
-        # wygenerowanie JWT
         refresh = RefreshToken.for_user(user)
         access = refresh.access_token
 
-        # przygotowanie odpowiedzi
         return Response({
             "user": {
                 "username": user.username,
