@@ -6,3 +6,4 @@ requests_cache==0.9.8
 retry-requests==2.0.0
 pandas==2.2.0
 requests==2.32.0
+django-cors-headers
