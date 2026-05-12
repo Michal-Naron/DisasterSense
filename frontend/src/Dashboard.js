@@ -6,237 +6,288 @@ import {
   CircleMarker,
   Popup,
   ZoomControl,
+  useMap,
+  useMapEvents,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
 const LAYERS = [
-  { key: "temperature", label: "Temperatura", unit: "°C" },
-  { key: "wind", label: "Wiatr", unit: "km/h" },
-  { key: "rain", label: "Opady", unit: "%" },
-  { key: "humidity", label: "Wilgotność", unit: "%" },
-  { key: "risk", label: "Ryzyko", unit: "%" },
+  { key: "temperature", apiKey: "temperature_2m", label: "Temperatura", unit: "°C" },
+  { key: "wind", apiKey: "wind_speed_10m", label: "Wiatr", unit: "km/h" },
+  { key: "rain", apiKey: "rain", label: "Opady", unit: "mm" },
 ];
 
-const SERVICE_URLS = {
-  weather: "http://localhost:8001",
-  seismic: "http://localhost:8002",
-  ocean: "http://localhost:8003",
-  risk: "http://localhost:3000",
-};
+const WEATHER_BASE_URL = "http://localhost:8001/v1/weather";
 
-const FALLBACK_CITIES = [
-  {
-    id: 1,
-    name: "Warszawa",
-    country: "Polska",
-    lat: 52.2297,
-    lon: 21.0122,
-    temperature: 17,
-    wind: 22,
-    rain: 15,
-    humidity: 63,
-    risk: 20,
-    source: "fallback",
-  },
+const DEFAULT_EUROPE_CITIES = [
+  { name: "Londyn", country: "Wielka Brytania", lat: 51.5074, lon: -0.1278 },
+  { name: "Paryż", country: "Francja", lat: 48.8566, lon: 2.3522 },
+  { name: "Berlin", country: "Niemcy", lat: 52.52, lon: 13.405 },
+  { name: "Madryt", country: "Hiszpania", lat: 40.4168, lon: -3.7038 },
+  { name: "Rzym", country: "Włochy", lat: 41.9028, lon: 12.4964 },
+  { name: "Wiedeń", country: "Austria", lat: 48.2082, lon: 16.3738 },
+  { name: "Warszawa", country: "Polska", lat: 52.2297, lon: 21.0122 },
+  { name: "Budapeszt", country: "Węgry", lat: 47.4979, lon: 19.0402 },
+  { name: "Praga", country: "Czechy", lat: 50.0755, lon: 14.4378 },
+  { name: "Amsterdam", country: "Holandia", lat: 52.3676, lon: 4.9041 },
 ];
 
-function getColorByLayer(layer, value) {
-  if (layer === "temperature") {
-    if (value <= 5) return "#60a5fa";
-    if (value <= 15) return "#34d399";
-    if (value <= 22) return "#fbbf24";
-    return "#fb7185";
-  }
-
-  if (layer === "wind") {
-    if (value <= 10) return "#4ade80";
-    if (value <= 20) return "#facc15";
-    return "#f97316";
-  }
-
-  if (layer === "rain") {
-    if (value <= 5) return "#86efac";
-    if (value <= 15) return "#60a5fa";
-    return "#2563eb";
-  }
-
-  if (layer === "humidity") {
-    if (value <= 45) return "#f59e0b";
-    if (value <= 65) return "#38bdf8";
-    return "#1d4ed8";
-  }
-
-  if (layer === "risk") {
-    if (value <= 25) return "#22c55e";
-    if (value <= 50) return "#eab308";
-    if (value <= 75) return "#f97316";
-    return "#ef4444";
-  }
-
-  return "#ffffff";
-}
-
-function getRadiusByLayer(layer, value) {
-  if (layer === "temperature") return Math.max(10, value * 0.9);
-  if (layer === "wind") return Math.max(10, value * 0.7);
-  if (layer === "rain") return Math.max(10, value * 0.9);
-  if (layer === "humidity") return Math.max(10, value * 0.4);
-  if (layer === "risk") return Math.max(10, value * 0.35);
-  return 12;
-}
-
-function formatValue(layer, value) {
-  const found = LAYERS.find((item) => item.key === layer);
-  return `${value} ${found?.unit || ""}`.trim();
-}
+const DEFAULT_LOCATION =
+  DEFAULT_EUROPE_CITIES.find((city) => city.name === "Warszawa") ||
+  DEFAULT_EUROPE_CITIES[0];
 
 function safeNumber(value, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
 }
 
-function normalizePoint(raw, source, index) {
-  return {
-    id: raw.id ?? `${source}-${index}`,
-    name: raw.name ?? raw.city ?? raw.location ?? raw.region ?? `${source}-${index + 1}`,
-    country: raw.country ?? raw.country_name ?? "Brak danych",
-    lat: safeNumber(raw.lat ?? raw.latitude),
-    lon: safeNumber(raw.lon ?? raw.longitude ?? raw.lng),
-    temperature: safeNumber(raw.temperature ?? raw.temp ?? raw.temperature_2m, 0),
-    wind: safeNumber(raw.wind ?? raw.wind_speed ?? raw.windSpeed, 0),
-    rain: safeNumber(raw.rain ?? raw.precipitation ?? raw.precip ?? raw.rainfall, 0),
-    humidity: safeNumber(raw.humidity ?? raw.relative_humidity, 0),
-    risk: safeNumber(raw.risk ?? raw.risk_score ?? raw.score, 0),
-    source,
-  };
+function getColorByLayer(layer, value) {
+  const safeValue = safeNumber(value);
+
+  if (layer === "temperature") {
+    if (safeValue <= 0) return "#60a5fa";
+    if (safeValue <= 10) return "#34d399";
+    if (safeValue <= 20) return "#fbbf24";
+    return "#fb7185";
+  }
+
+  if (layer === "wind") {
+    if (safeValue <= 10) return "#4ade80";
+    if (safeValue <= 25) return "#facc15";
+    return "#f97316";
+  }
+
+  if (layer === "rain") {
+    if (safeValue <= 0.2) return "#86efac";
+    if (safeValue <= 2) return "#60a5fa";
+    return "#2563eb";
+  }
+
+  return "#ffffff";
 }
 
-function extractArray(data) {
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.cities)) return data.cities;
-  if (Array.isArray(data?.points)) return data.points;
-  if (Array.isArray(data?.items)) return data.items;
-  if (Array.isArray(data?.results)) return data.results;
-  if (Array.isArray(data?.data)) return data.data;
+function getRadiusByLayer(layer, value) {
+  const safeValue = safeNumber(value);
+
+  if (layer === "temperature") return Math.max(12, Math.abs(safeValue) * 0.8 + 10);
+  if (layer === "wind") return Math.max(12, safeValue * 0.35 + 10);
+  if (layer === "rain") return Math.max(12, safeValue * 3 + 10);
+
+  return 14;
+}
+
+function formatValue(layer, value) {
+  const found = LAYERS.find((item) => item.key === layer);
+  return `${safeNumber(value)} ${found?.unit || ""}`.trim();
+}
+
+function MapController({ selectedCity }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!selectedCity?.lat || !selectedCity?.lon) return;
+
+    map.flyTo([selectedCity.lat, selectedCity.lon], 7, {
+      duration: 1.2,
+    });
+  }, [selectedCity, map]);
+
   return null;
 }
 
-async function fetchService(url) {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status} for ${url}`);
-  }
-  return response.json();
+function MapClickHandler({ onMapClick }) {
+  useMapEvents({
+    click: (e) => {
+      onMapClick(e.latlng.lat, e.latlng.lng);
+    },
+  });
+
+  return null;
 }
 
-function mergeByLocation(points) {
-  const map = new Map();
+async function fetchWeatherValue(weatherKey, lat, lon) {
+  try {
+    const url = `${WEATHER_BASE_URL}/${weatherKey}?lat=${lat}&lon=${lon}`;
+    const response = await fetch(url);
 
-  for (const point of points) {
-    if (!Number.isFinite(point.lat) || !Number.isFinite(point.lon)) continue;
+    if (!response.ok) return 0;
 
-    const key = `${point.name}-${point.lat}-${point.lon}`;
-    const existing = map.get(key);
+    const data = await response.json();
+    const object = data?.[weatherKey];
 
-    if (!existing) {
-      map.set(key, { ...point });
-    } else {
-      map.set(key, {
-        ...existing,
-        temperature: point.temperature || existing.temperature,
-        wind: point.wind || existing.wind,
-        rain: point.rain || existing.rain,
-        humidity: point.humidity || existing.humidity,
-        risk: point.risk || existing.risk,
-      });
-    }
+    if (!object || typeof object !== "object") return 0;
+
+    const values = Object.values(object).map((v) => safeNumber(v, 0));
+    return values[0] ?? 0;
+  } catch (error) {
+    console.error(error);
+    return 0;
   }
+}
 
-  return Array.from(map.values());
+async function getWeatherForLocation(location) {
+  const [temperature, wind, rain] = await Promise.all([
+    fetchWeatherValue("temperature_2m", location.lat, location.lon),
+    fetchWeatherValue("wind_speed_10m", location.lat, location.lon),
+    fetchWeatherValue("rain", location.lat, location.lon),
+  ]);
+
+  return {
+    ...location,
+    temperature,
+    wind,
+    rain,
+  };
+}
+
+async function searchLocation(query) {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(
+        query
+      )}`
+    );
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+
+    if (!Array.isArray(data) || data.length === 0) return null;
+
+    const first = data[0];
+    const parts = String(first.display_name || "").split(",");
+
+    return {
+      name: parts[0]?.trim() || query,
+      country: parts[parts.length - 1]?.trim() || "Brak danych",
+      lat: safeNumber(first.lat),
+      lon: safeNumber(first.lon),
+    };
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+async function reverseGeocode(lat, lon) {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`
+    );
+
+    if (!response.ok) {
+      return {
+        name: `Lat ${lat.toFixed(3)}, Lon ${lon.toFixed(3)}`,
+        country: "Brak danych",
+      };
+    }
+
+    const data = await response.json();
+    const address = data?.address || {};
+
+    return {
+      name:
+        address.city ||
+        address.town ||
+        address.village ||
+        address.county ||
+        "Nowa lokalizacja",
+      country: address.country || "Brak danych",
+    };
+  } catch (error) {
+    console.error(error);
+
+    return {
+      name: `Lat ${lat.toFixed(3)}, Lon ${lon.toFixed(3)}`,
+      country: "Brak danych",
+    };
+  }
 }
 
 function Dashboard() {
   const navigate = useNavigate();
 
   const [activeLayer, setActiveLayer] = useState("temperature");
-  const [selectedCity, setSelectedCity] = useState(FALLBACK_CITIES[0]);
-  const [timeIndex, setTimeIndex] = useState(8);
   const [query, setQuery] = useState("");
-  const [cities, setCities] = useState(FALLBACK_CITIES);
-  const [loading, setLoading] = useState(true);
-  const [loadInfo, setLoadInfo] = useState("Ładowanie danych z mikroserwisów...");
+  const [defaultCities, setDefaultCities] = useState([]);
+  const [selectedCity, setSelectedCity] = useState({
+    ...DEFAULT_LOCATION,
+    temperature: 0,
+    wind: 0,
+    rain: 0,
+  });
+
+  const username =
+    localStorage.getItem("username") ||
+    localStorage.getItem("firstName") ||
+    "Użytkowniku";
+
+  const loadWeatherForLocation = async (location) => {
+    const cityWithWeather = await getWeatherForLocation(location);
+    setSelectedCity(cityWithWeather);
+  };
+
+  const loadWeatherForDefaultCities = async () => {
+    const citiesWithWeather = await Promise.all(
+      DEFAULT_EUROPE_CITIES.map((city) => getWeatherForLocation(city))
+    );
+
+    setDefaultCities(citiesWithWeather);
+  };
 
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-
-      const collected = [];
-      const messages = [];
-
-      for (const [source, baseUrl] of Object.entries(SERVICE_URLS)) {
-        try {
-          const data = await fetchService(`${baseUrl}/`);
-          const arr = extractArray(data);
-
-          if (arr) {
-            collected.push(...arr.map((item, index) => normalizePoint(item, source, index)));
-            messages.push(`${source}: OK`);
-          } else if (data && typeof data === "object") {
-            collected.push(normalizePoint(data, source, 0));
-            messages.push(`${source}: OK`);
-          } else {
-            messages.push(`${source}: brak rozpoznawalnych danych`);
-          }
-        } catch (error) {
-          messages.push(`${source}: błąd`);
-        }
-      }
-
-      const merged = mergeByLocation(collected);
-
-      if (merged.length > 0) {
-        setCities(merged);
-        setSelectedCity(merged[0]);
-      } else {
-        setCities(FALLBACK_CITIES);
-        setSelectedCity(FALLBACK_CITIES[0]);
-      }
-
-      setLoadInfo(messages.join(" | "));
-      setLoading(false);
-    };
-
-    loadData();
+    loadWeatherForLocation(DEFAULT_LOCATION);
+    loadWeatherForDefaultCities();
   }, []);
 
-  const filteredCities = useMemo(() => {
-    if (!query.trim()) return cities;
+  const displayValues = useMemo(() => {
+    return {
+      temperature: selectedCity.temperature ?? 0,
+      wind: selectedCity.wind ?? 0,
+      rain: selectedCity.rain ?? 0,
+    };
+  }, [selectedCity]);
 
-    return cities.filter((city) =>
-      `${city.name} ${city.country}`.toLowerCase().includes(query.toLowerCase())
-    );
-  }, [query, cities]);
+  const markerValue = displayValues[activeLayer];
 
-  const timelineLabels = [
-    "00:00",
-    "03:00",
-    "06:00",
-    "09:00",
-    "12:00",
-    "15:00",
-    "18:00",
-    "21:00",
-  ];
+const handleSearch = async () => {
+  if (!query.trim()) return;
+
+  const found = await searchLocation(query);
+
+  if (!found) return;
+
+  const cityWithWeather = await getWeatherForLocation(found);
+
+  setSelectedCity(cityWithWeather);
+  setQuery("");
+};
+
+  const handleMapClick = async (lat, lon) => {
+    const location = await reverseGeocode(lat, lon);
+
+    await loadWeatherForLocation({
+      name: location.name,
+      country: location.country,
+      lat,
+      lon,
+    });
+  };
 
   const handleLogout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("username");
-    localStorage.removeItem("email");
-    localStorage.removeItem("firstName");
-    localStorage.removeItem("lastName");
+    localStorage.clear();
     navigate("/");
   };
+
+  const handleOpenProfile = () => {
+    navigate("/profile");
+  };
+
+const handleOpenAssistant = () => {
+  setIsAssistantOpen(true);
+};
+
+const [isAssistantOpen, setIsAssistantOpen] = useState(false);
 
   return (
     <div className="weather-dashboard">
@@ -246,13 +297,15 @@ function Dashboard() {
         </div>
 
         <div className="sidebar-section">
-          <div className="sidebar-title">Warstwy</div>
+          <div className="sidebar-title">WARSTWY</div>
 
           <div className="layer-list">
             {LAYERS.map((layer) => (
               <button
                 key={layer.key}
-                className={`layer-btn ${activeLayer === layer.key ? "layer-btn-active" : ""}`}
+                className={`layer-btn ${
+                  activeLayer === layer.key ? "layer-btn-active" : ""
+                }`}
                 onClick={() => setActiveLayer(layer.key)}
               >
                 {layer.label}
@@ -262,7 +315,7 @@ function Dashboard() {
         </div>
 
         <div className="sidebar-section">
-          <div className="sidebar-title">Wybrane miejsce</div>
+          <div className="sidebar-title">WYBRANE MIEJSCE</div>
 
           <div className="city-card">
             <h3>{selectedCity.name}</h3>
@@ -271,27 +324,17 @@ function Dashboard() {
             <div className="city-stats">
               <div>
                 <span>Temperatura</span>
-                <strong>{selectedCity.temperature} °C</strong>
+                <strong>{displayValues.temperature} °C</strong>
               </div>
+
               <div>
                 <span>Wiatr</span>
-                <strong>{selectedCity.wind} km/h</strong>
+                <strong>{displayValues.wind} km/h</strong>
               </div>
+
               <div>
                 <span>Opady</span>
-                <strong>{selectedCity.rain} %</strong>
-              </div>
-              <div>
-                <span>Wilgotność</span>
-                <strong>{selectedCity.humidity} %</strong>
-              </div>
-              <div>
-                <span>Ryzyko</span>
-                <strong>{selectedCity.risk} %</strong>
-              </div>
-              <div>
-                <span>Źródło</span>
-                <strong>{selectedCity.source}</strong>
+                <strong>{displayValues.rain} mm</strong>
               </div>
             </div>
           </div>
@@ -312,73 +355,107 @@ function Dashboard() {
               placeholder="Wpisz miejsce..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSearch();
+              }}
               className="search-input"
             />
+
+            <button className="search-button" onClick={handleSearch}>
+              Szukaj
+            </button>
           </div>
 
           <div className="topbar-right">
-            <div className="status-chip">
-              Warstwa: <strong>{LAYERS.find((item) => item.key === activeLayer)?.label}</strong>
-            </div>
-            <div className="status-chip">
-              {loading ? "Ładowanie..." : loadInfo}
-            </div>
+            <button className="assistant-button" onClick={handleOpenAssistant}>
+            Asystent AI
+            </button>
+
+            <button className="profile-button" onClick={handleOpenProfile}>
+              Witaj, {username}
+            </button>
           </div>
         </div>
-
         <div className="map-shell">
           <MapContainer
-            center={[51.5, 15.0]}
-            zoom={5}
+            center={[selectedCity.lat, selectedCity.lon]}
+            zoom={6}
             minZoom={4}
             zoomControl={false}
             className="leaflet-map"
           >
+            <MapController selectedCity={selectedCity} />
+            <MapClickHandler onMapClick={handleMapClick} />
+
             <ZoomControl position="topright" />
 
             <TileLayer
-              attribution='&copy; OpenStreetMap contributors'
+              attribution="&copy; OpenStreetMap contributors"
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            {filteredCities.map((city) => {
-              const value = city[activeLayer] ?? 0;
+            {defaultCities.map((city) => {
+              const value = city[activeLayer];
 
               return (
                 <CircleMarker
-                  key={city.id}
+                  key={city.name}
                   center={[city.lat, city.lon]}
                   radius={getRadiusByLayer(activeLayer, value)}
                   pathOptions={{
                     color: "#ffffff",
                     weight: 2,
                     fillColor: getColorByLayer(activeLayer, value),
-                    fillOpacity: 0.75,
-                  }}
-                  eventHandlers={{
-                    click: () => setSelectedCity(city),
+                    fillOpacity: 0.8,
                   }}
                 >
                   <Popup>
-                    <div className="popup-card">
-                      <strong>{city.name}, {city.country}</strong>
-                      <div>{LAYERS.find((item) => item.key === activeLayer)?.label}</div>
+                    <div>
+                      <strong>
+                        {city.name}, {city.country}
+                      </strong>
+                      <div>
+                        {LAYERS.find((item) => item.key === activeLayer)?.label}
+                      </div>
                       <div>{formatValue(activeLayer, value)}</div>
                     </div>
                   </Popup>
                 </CircleMarker>
               );
             })}
+
+            <CircleMarker
+              center={[selectedCity.lat, selectedCity.lon]}
+              radius={getRadiusByLayer(activeLayer, markerValue)}
+              pathOptions={{
+                color: "#ffffff",
+                weight: 3,
+                fillColor: getColorByLayer(activeLayer, markerValue),
+                fillOpacity: 0.95,
+              }}
+            >
+              <Popup>
+                <div>
+                  <strong>
+                    {selectedCity.name}, {selectedCity.country}
+                  </strong>
+                  <div>
+                    {LAYERS.find((item) => item.key === activeLayer)?.label}
+                  </div>
+                  <div>{formatValue(activeLayer, markerValue)}</div>
+                </div>
+              </Popup>
+            </CircleMarker>
           </MapContainer>
 
           <div className="map-overlay-card">
             <div className="overlay-title">Podgląd warstwy</div>
+
             <div className="overlay-value">
               {LAYERS.find((item) => item.key === activeLayer)?.label}
             </div>
-            <div className="overlay-subtitle">
-              Kliknij punkt na mapie, aby podejrzeć szczegóły miejsca
-            </div>
+
+            <div className="overlay-subtitle">{selectedCity.name}</div>
           </div>
 
           <div className="legend-box">
@@ -390,32 +467,49 @@ function Dashboard() {
             </div>
           </div>
         </div>
-
-        <div className="timeline-panel">
-          <div className="timeline-top">
-            <div>
-              <div className="timeline-title">Oś czasu</div>
-              <div className="timeline-subtitle">Widok demonstracyjny</div>
-            </div>
-            <div className="timeline-badge">{timelineLabels[timeIndex]}</div>
-          </div>
-
-          <input
-            type="range"
-            min="0"
-            max={timelineLabels.length - 1}
-            value={timeIndex}
-            onChange={(e) => setTimeIndex(Number(e.target.value))}
-            className="timeline-slider"
-          />
-
-          <div className="timeline-labels">
-            {timelineLabels.map((label) => (
-              <span key={label}>{label}</span>
-            ))}
-          </div>
-        </div>
       </main>
+      {isAssistantOpen && (
+  <div className="ai-modal-backdrop" onClick={() => setIsAssistantOpen(false)}>
+    <div className="ai-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="ai-modal-header">
+        <h2>Asystent AI</h2>
+
+        <button
+          className="ai-modal-close"
+          onClick={() => setIsAssistantOpen(false)}
+        >
+          ×
+        </button>
+      </div>
+
+      <div className="ai-modal-content">
+        <div className="ai-section">
+          <span>Aktualna lokalizacja:</span>
+          <strong>
+            {selectedCity.name}, {selectedCity.country}
+          </strong>
+        </div>
+
+        <div className="ai-section">
+          <span>Parametry:</span>
+          <strong>
+            Temperatura: {displayValues.temperature}°C, Wiatr:{" "}
+            {displayValues.wind} km/h, Opady: {displayValues.rain} mm
+          </strong>
+        </div>
+
+        <div className="ai-section">
+          <span>Rekomendacja:</span>
+          <p>
+            Warunki są stabilne. Możesz bezpiecznie zaplanować aktywność na
+            zewnątrz, ale warto sprawdzić siłę wiatru przed dłuższym spacerem
+            lub jazdą rowerem.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }
