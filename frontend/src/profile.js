@@ -1,41 +1,151 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./profile.css";
 
+const USER_API = "http://localhost:8004/v1/users/me";
+
 const favoritePlaces = [
-  {
-    name: "Warszawa",
-    country: "Polska",
-    temperature: 18,
-    wind: 12,
-    rain: 0,
-  },
-  {
-    name: "Berlin",
-    country: "Niemcy",
-    temperature: 16,
-    wind: 9,
-    rain: 1,
-  },
-  {
-    name: "Paryż",
-    country: "Francja",
-    temperature: 21,
-    wind: 7,
-    rain: 0,
-  },
+  { name: "Warszawa", country: "Polska", temperature: 18, wind: 12, rain: 0 },
+  { name: "Berlin", country: "Niemcy", temperature: 16, wind: 9, rain: 1 },
+  { name: "Paryż", country: "Francja", temperature: 21, wind: 7, rain: 0 },
 ];
 
 function Profile() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("favorites");
 
-  const username =
-    localStorage.getItem("username") ||
-    localStorage.getItem("firstName") ||
-    "jan123";
+  const [userData, setUserData] = useState({
+    firstName: "",
+    lastName: "",
+    username: "",
+    email: "",
+    password: "",
+  });
 
-  const email = localStorage.getItem("email") || "brak adresu e-mail";
+  const [editingField, setEditingField] = useState(null);
+  const [editValue, setEditValue] = useState("");
+
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const token = localStorage.getItem("token");
+
+        const response = await fetch(USER_API, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Nie udało się pobrać danych użytkownika");
+        }
+
+        const data = await response.json();
+
+        setUserData({
+          firstName: data.firstName || "",
+          lastName: data.lastName || "",
+          username: data.username || "",
+          email: data.email || "",
+          password: "",
+        });
+      } catch (error) {
+        console.error(error);
+
+        setUserData({
+          firstName: localStorage.getItem("firstName") || "Jan",
+          lastName: localStorage.getItem("lastName") || "Kowalski",
+          username: localStorage.getItem("username") || "jan123",
+          email: localStorage.getItem("email") || "jan@example.com",
+          password: "",
+        });
+      }
+    };
+
+    loadUserData();
+  }, []);
+
+  const startEdit = (field) => {
+    setEditingField(field);
+    setEditValue(field === "password" ? "" : userData[field] || "");
+  };
+
+  const cancelEdit = () => {
+    setEditingField(null);
+    setEditValue("");
+  };
+
+  const saveField = async (field) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(USER_API, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          [field]: editValue,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Nie udało się zapisać zmian");
+      }
+
+      const updatedUser = await response.json();
+
+      setUserData((prev) => ({
+        ...prev,
+        ...updatedUser,
+        [field]: field === "password" ? "" : editValue,
+      }));
+
+      if (field !== "password") {
+        localStorage.setItem(field, editValue);
+      }
+
+      cancelEdit();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const ProfileField = ({ label, field, type = "text" }) => (
+    <div className="profile-data-row">
+      <div>
+        <span>{label}</span>
+
+        {editingField === field ? (
+          <input
+            type={type}
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            className="profile-edit-input"
+          />
+        ) : (
+          <strong>
+            {field === "password"
+              ? "••••••••"
+              : userData[field] || "Brak danych"}
+          </strong>
+        )}
+      </div>
+
+      {editingField === field ? (
+        <div className="profile-edit-actions">
+          <button onClick={() => saveField(field)}>Zapisz</button>
+          <button onClick={cancelEdit}>Anuluj</button>
+        </div>
+      ) : (
+        <button onClick={() => startEdit(field)}>Edytuj</button>
+      )}
+    </div>
+  );
+
+  const username = userData.username || "jan123";
+  const email = userData.email || "brak adresu e-mail";
 
   return (
     <div className="profile-page">
@@ -100,9 +210,14 @@ function Profile() {
         {activeTab === "settings" && (
           <section className="profile-card">
             <h2>Ustawienia profilu</h2>
-            <p className="profile-muted">
-              Tutaj później można dodać zmianę hasła, avataru albo preferowane jednostki.
-            </p>
+
+            <div className="profile-data-list">
+              <ProfileField label="Imię" field="firstName" />
+              <ProfileField label="Nazwisko" field="lastName" />
+              <ProfileField label="Login" field="username" />
+              <ProfileField label="E-mail" field="email" type="email" />
+              <ProfileField label="Hasło" field="password" type="password" />
+            </div>
           </section>
         )}
       </div>
