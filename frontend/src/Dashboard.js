@@ -10,6 +10,7 @@ import {
   useMapEvents,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const LAYERS = [
   { key: "temperature", apiKey: "temperature_2m", label: "Temperatura", unit: "°C" },
@@ -140,6 +141,26 @@ async function getWeatherForLocation(location) {
   };
 }
 
+async function fetchRiskScore(location) {
+  try {
+    const response = await fetch(
+      `http://localhost:3000/v1/risk-score?lat=${location.lat}&lon=${location.lon}`
+    );
+
+    if (!response.ok) throw new Error("Risk score API error");
+
+    return await response.json();
+  } catch (error) {
+    console.error(error);
+
+    return {
+      score: 21,
+      level: "niski",
+      history: [12, 18, 15, 22, 19, 25, 21],
+    };
+  }
+}
+
 async function searchLocation(query) {
   try {
     const response = await fetch(
@@ -223,9 +244,12 @@ function Dashboard() {
     "Użytkowniku";
 
   const loadWeatherForLocation = async (location) => {
-    const cityWithWeather = await getWeatherForLocation(location);
-    setSelectedCity(cityWithWeather);
-  };
+  const cityWithWeather = await getWeatherForLocation(location);
+  const risk = await fetchRiskScore(cityWithWeather);
+
+  setSelectedCity(cityWithWeather);
+  setRiskData(risk);
+};
 
   const loadWeatherForDefaultCities = async () => {
     const citiesWithWeather = await Promise.all(
@@ -289,6 +313,12 @@ const handleOpenAssistant = () => {
 
 const [isAssistantOpen, setIsAssistantOpen] = useState(false);
 
+const [riskData, setRiskData] = useState({
+  score: 0,
+  level: "brak danych",
+  history: [12, 18, 15, 22, 19, 25, 21],
+});
+
   return (
     <div className="weather-dashboard">
       <aside className="weather-sidebar">
@@ -338,6 +368,18 @@ const [isAssistantOpen, setIsAssistantOpen] = useState(false);
               </div>
             </div>
           </div>
+          <div className="risk-card">
+            <div className="risk-card-header">
+              <div>
+                <span>RISK SCORE</span>
+                <strong>{riskData.score}/100</strong>
+              </div>
+
+              <div className={`risk-pill risk-${riskData.level}`}>
+                {riskData.level}
+              </div>
+            </div>
+          </div>  
         </div>
 
         <div className="sidebar-section sidebar-footer">
