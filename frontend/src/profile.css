@@ -1,0 +1,131 @@
+.profile-page {
+  min-height: 100vh;
+  background: #081225;
+  color: white;
+  padding: 40px;
+}
+
+.profile-container {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.profile-back {
+  border: none;
+  background: #172554;
+  color: white;
+  padding: 14px 22px;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 28px;
+}
+
+.profile-header {
+  background: linear-gradient(135deg, #1e3a8a, #0f172a);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 32px;
+  padding: 34px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 26px;
+}
+
+.profile-avatar {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #60a5fa, #2563eb);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 42px;
+  font-weight: 900;
+}
+
+.profile-header h1 {
+  font-size: 42px;
+  margin: 0;
+}
+
+.profile-header p {
+  margin-top: 8px;
+  color: #cbd5e1;
+}
+
+.profile-tabs {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.profile-tabs button {
+  border: none;
+  border-radius: 999px;
+  padding: 16px 28px;
+  background: #111c33;
+  color: #cbd5e1;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.profile-tabs .tab-active {
+  background: #3b82f6;
+  color: white;
+}
+
+.profile-card {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 32px;
+  padding: 30px;
+}
+
+.profile-card h2 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.profile-muted {
+  color: #94a3b8;
+  margin-top: 8px;
+}
+
+.favorite-list {
+  display: grid;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.favorite-card {
+  background: #0f1b33;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.favorite-card h3 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.favorite-card p {
+  margin: 6px 0 0;
+  color: #94a3b8;
+}
+
+.favorite-weather {
+  display: flex;
+  gap: 12px;
+}
+
+.favorite-weather span {
+  background: #172554;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-weight: 800;
+}
