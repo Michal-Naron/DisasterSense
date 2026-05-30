@@ -37,7 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'risk_engine_app'
+    'risk_engine_app',
+    'rest_framework'
 ]
 
 MIDDLEWARE = [
