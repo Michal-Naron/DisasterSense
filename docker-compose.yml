@@ -56,7 +56,7 @@ services:
     platform: linux/arm64
     container_name: risk-engine
     ports:
-      - "3000:3000"
+      - "8005:8000"
     volumes:
       - ./risk_engine:/app
       - /app/node_modules

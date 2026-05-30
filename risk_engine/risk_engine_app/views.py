@@ -3,7 +3,7 @@ import requests
 from rest_framework.response import Response
 
 class RiskCalculator(APIView):
-    BASE_URL = "http://localhost:8000/v1/weather/"
+    BASE_URL = "http://weather-service:8000/v1/weather/"
     
     def get(self, requst):
         weather_types = [
