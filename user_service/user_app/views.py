@@ -79,3 +79,20 @@ class PostFavoriteLocation(APIView):
             "username": user.username,
             "favorite_location": new_favorite.city_name
         })
+    
+    def get(self, request):
+        username = request.query_params.get("username")
+        
+        if not username:
+            return Response({"error": "Musisz podać username w query params"}, status=400)
+        
+        try:
+            user = User.objects.get(username=username) 
+        except User.DoesNotExist:
+            return Response({"error": "Nieprawidłowa nazwa użytkownika"}, status=404)
+        
+        locations = user.favorite_locations.all()
+        
+        locations_list = [loc.city_name for loc in locations]
+        
+        return Response({"favorite_locations": locations_list})
