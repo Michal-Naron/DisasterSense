@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from .serializers import RegisterSerializer
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
-
+from django.contrib.auth.models import User
 
 
 class RegisterView(generics.CreateAPIView):
@@ -58,3 +58,24 @@ class LoginView(APIView):
             }, status=status.HTTP_200_OK)
         else:
             return Response({"detail": "Nieprawidłowe dane logowania"}, status=status.HTTP_401_UNAUTHORIZED)
+
+class PostFavoriteLocation(APIView):
+    def post(self, request):
+        username = request.data.get("username")
+        favorite_location = request.data.get("favorite_location")
+        
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return Response({"error": "Użytkownik nie istnieje"}, status=404)
+        
+        new_favorite = FavoriteLocation.objects.create(
+            user=user,
+            city_name=favorite_location
+        )
+        
+        return Response({
+            "message": "Dodano do ulubionych",
+            "username": user.username,
+            "favorite_location": new_favorite.city_name
+        })
