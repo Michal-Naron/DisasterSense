@@ -38,7 +38,7 @@ services:
     environment:
       - DEBUG=1
 
-  user-service:   
+  user-service:
     build:
       context: ./user_service
     platform: linux/arm64
@@ -67,18 +67,35 @@ services:
       - weather-service
       - seismic-service
       - ocean-service
-      - user-service   
+      - user-service
+
   db:
     image: postgres:15-alpine
     container_name: disaster-db
     environment:
       - POSTGRES_DB=user_db
       - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=admin  
+      - POSTGRES_PASSWORD=admin
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    entrypoint: >
+      sh -c "
+      ollama serve &
+      sleep 10 &&
+      ollama pull qwen3:1.7b &&
+      wait
+      "
+
 volumes:
   postgres_data:
+  ollama:
