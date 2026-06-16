@@ -15,8 +15,9 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+from risk_engine_app.views import RiskCalculator
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('', RiskCalculator.as_view())
 ]

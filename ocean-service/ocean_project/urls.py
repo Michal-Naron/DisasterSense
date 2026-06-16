@@ -16,7 +16,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-
+from ocean.views import ai_message
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('ai_agend', ai_message )
 ]

@@ -1,8 +1,9 @@
 from rest_framework.views import APIView
 import requests
+from rest_framework.response import Response
 
 class RiskCalculator(APIView):
-    BASE_URL = "http://localhost:8000/v1/weather/"
+    BASE_URL = "http://weather-service:8000/v1/weather/"
     
     def get(self, requst):
         weather_types = [
@@ -13,9 +14,10 @@ class RiskCalculator(APIView):
         data = {}
 
         for weather in weather_types:
-            response = requests.get(f"{BASE_URL}{weather}")
+            response = requests.get(f"{RiskCalculator.BASE_URL}{weather}")
             response.raise_for_status()
-            data[weather] = response.json()[weather]  
+            data[weather] = response.json()[weather]
+        return Response(self.calculate(data))  
     
     
     def rain_score(self,value):
