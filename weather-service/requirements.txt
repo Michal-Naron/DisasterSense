@@ -5,4 +5,4 @@ requests_cache==0.9.8
 retry_requests
 pandas==2.2.0
 requests==2.32.0
-google-generativeai
+django-cors-headers==3.13.0
