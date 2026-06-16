@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./profile.css";
 
-const USER_API = "http://localhost:8004/v1/users/me";
+const USER_API = "http://user-service:8000/edit-user/";
 
 const favoritePlaces = [
   { name: "Warszawa", country: "Polska", temperature: 18, wind: 12, rain: 0 },
@@ -43,8 +43,8 @@ function Profile() {
         const data = await response.json();
 
         setUserData({
-          firstName: data.firstName || "",
-          lastName: data.lastName || "",
+          firstName: data.first_name || "",
+          lastName: data.last_name || "",
           username: data.username || "",
           email: data.email || "",
           password: "",

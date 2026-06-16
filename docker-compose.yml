@@ -95,6 +95,25 @@ services:
       ollama pull qwen3:1.7b &&
       wait
       "
+    
+  frontend:
+    build:
+      context: ./frontend
+    platform: linux/arm64
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - weather-service
+      - seismic-service
+      - ocean-service
+      - user-service
+      - risk-engine
 
 volumes:
   postgres_data:

@@ -18,7 +18,7 @@ const LAYERS = [
   { key: "rain", apiKey: "rain", label: "Opady", unit: "mm" },
 ];
 
-const WEATHER_BASE_URL = "http://localhost:8001/v1/weather";
+const WEATHER_BASE_URL = "http://weather-service:8000/v1/weather";
 
 const DEFAULT_EUROPE_CITIES = [
   { name: "Londyn", country: "Wielka Brytania", lat: 51.5074, lon: -0.1278 },
@@ -143,10 +143,7 @@ async function getWeatherForLocation(location) {
 
 async function fetchRiskScore(location) {
   try {
-    const response = await fetch(
-      `http://localhost:3000/v1/risk-score?lat=${location.lat}&lon=${location.lon}`
-    );
-
+    const response = await fetch(`http://risk-engine:8000/v1/risk-score?lat=${location.lat}&lon=${location.lon}`);
     if (!response.ok) throw new Error("Risk score API error");
 
     return await response.json();
@@ -158,6 +155,24 @@ async function fetchRiskScore(location) {
       level: "niski",
       history: [12, 18, 15, 22, 19, 25, 21],
     };
+  }
+}
+
+async function fetchAiRecommendation(location) {
+  try {
+    const response = await fetch(
+      `http://ocean-service:8000/ai_agend?lat=${location.lat}&lon=${location.lon}`
+    );
+
+    if (!response.ok) {
+      throw new Error("AI recommendation API error");
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(error);
+    return { message: "Brak rekomendacji" };
   }
 }
 
@@ -246,9 +261,21 @@ function Dashboard() {
   const loadWeatherForLocation = async (location) => {
   const cityWithWeather = await getWeatherForLocation(location);
   const risk = await fetchRiskScore(cityWithWeather);
+  const message = await fetchAiRecommendation(cityWithWeather);
 
   setSelectedCity(cityWithWeather);
   setRiskData(risk);
+  setAiMessage(message);
+};
+const handleSearch = async () => {
+  if (!query.trim()) return;
+
+  const found = await searchLocation(query);
+
+  if (!found) return;
+
+  await loadWeatherForLocation(found);
+  setQuery("");
 };
 
   const loadWeatherForDefaultCities = async () => {
@@ -274,18 +301,6 @@ function Dashboard() {
 
   const markerValue = displayValues[activeLayer];
 
-const handleSearch = async () => {
-  if (!query.trim()) return;
-
-  const found = await searchLocation(query);
-
-  if (!found) return;
-
-  const cityWithWeather = await getWeatherForLocation(found);
-
-  setSelectedCity(cityWithWeather);
-  setQuery("");
-};
 
   const handleMapClick = async (lat, lon) => {
     const location = await reverseGeocode(lat, lon);
@@ -318,6 +333,8 @@ const [riskData, setRiskData] = useState({
   level: "brak danych",
   history: [12, 18, 15, 22, 19, 25, 21],
 });
+
+const [aiMessage, setAiMessage] = useState("Brak rekomendacji");
 
   return (
     <div className="weather-dashboard">
@@ -543,9 +560,7 @@ const [riskData, setRiskData] = useState({
         <div className="ai-section">
           <span>Rekomendacja:</span>
           <p>
-            Warunki są stabilne. Możesz bezpiecznie zaplanować aktywność na
-            zewnątrz, ale warto sprawdzić siłę wiatru przed dłuższym spacerem
-            lub jazdą rowerem.
+            {aiMessage.message || "Brak rekomendacji dla tej lokalizacji."}
           </p>
         </div>
       </div>
