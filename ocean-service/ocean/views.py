@@ -56,5 +56,5 @@ def ai_message(request):
     data = response.json()
 
     return JsonResponse({
-            "message": data["response"]
+            "message": data
         })
